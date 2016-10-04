@@ -10,12 +10,25 @@ import (
 	"html/template"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
+	"time"
 )
 
 var htmlPath, _ = filepath.Abs("html")
 
 // defListenPort - default port for the service to listen on
 const defListenPort = 8081
+
+var fMap = template.FuncMap{
+	"formatAsDate": func (t time.Time) string {
+
+	/* Layouts must use the reference time Mon Jan 2 15:04:05 MST 2006 to show
+	the pattern with which to format/parse a given time/string.
+
+	 PHP-level stupidity here.
+	 */
+	return t.Format("2006-01-02")
+	},
+}
 
 var GitClient *github.Client
 
@@ -33,8 +46,6 @@ func main() {
 
 	log.Println("Setting Routes...")
 	// Create a new URL multiplexer (mux) to handle routing
-	// While this could have been done with the standard http library, it wouldn't allow for regex to be used,
-	// so we shall use Mozilla's mux package
 	muxer := mux.NewRouter()
 
 	// Generic handler for users visiting the homepage
@@ -46,33 +57,47 @@ func main() {
 }
 
 func HandleHome (w http.ResponseWriter, r *http.Request) {
-	repoOpts := &github.RepositoryListByOrgOptions{}
+
+	type PullReqs struct{
+		RepoName string
+		Request *github.PullRequest
+	}
+
+	type NamedPullRepos struct {
+		PullRepos []PullReqs
+	}
+
+	var pulls []PullReqs
+
+	repoOpts := &github.RepositoryListByOrgOptions{Type:"private"}
 	repos, _, err := GitClient.Repositories.ListByOrg("wrapp", repoOpts)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	var pulls = make(map[string][]*github.PullRequest)
-
 	for r := range repos {
-		pullOpts := &github.PullRequestListOptions{}
-		pull, _, err := GitClient.PullRequests.List("wrapp", *repos[r].Name, pullOpts)
-		if err != nil {
-			log.Panic(err)
+		//We don't care about forks
+		if *repos[r].Fork != true {
+			pullOpts := &github.PullRequestListOptions{}
+			pullList, _, err := GitClient.PullRequests.List("wrapp", *repos[r].Name, pullOpts)
+			if err != nil {
+				log.Panic(err)
+			}
+			for p := range pullList {
+				pulls = append(pulls, PullReqs{RepoName: *repos[r].Name, Request: pullList[p]})
+			}
+
+			var repoNames []string
+			repoNames = append(repoNames, *repos[r].Name)
+			log.Print(repoNames)
 		}
-		pulls[*repos[r].Name] = pull
 	}
 	if err != nil {
 		log.Panic(err)
 	}
 
-	log.Print(pulls)
 
-	t, err := template.ParseFiles(path.Join(htmlPath, "index.html"))
-	if err != nil {
-		// If we can't parse the template, something is dangerously broken
-		log.Panic(err)
-	}
-	p := map[string]interface{}{"pullRequests": pulls}
+	t := template.Must(template.New("index.html").Funcs(fMap).ParseFiles(path.Join(htmlPath, "index.html")))
+	p := NamedPullRepos{PullRepos: pulls}
 	t.Execute(w, p)
 }
