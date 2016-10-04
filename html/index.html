@@ -53,47 +53,32 @@
                     <tr>
                         <th><p>Repo</p></th>
                         <th><p>User</p></th>
-                        <th><p>Created</p></th>
+                        <th><p>Age</p></th>
                         <th><p>Title</p></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {{range .PullRepos}}
+                    {{range .}}
                     <tr>
                         <td>
                             <p>{{.RepoName}}</p>
                         </td>
 
-                        {{with .Request}}
-
                         <td>
-                            {{with .User}}
-                            <p>{{.Login}}</p>
-                            {{end}}
+                            <p>{{.UserName}}</p>
                         </td>
 
                         <td>
-                            <p>{{.CreatedAt | formatAsDate}}</p>
+                            <p>{{.Age}} hour(s)</p>
                         </td>
+
                         <td>
                             <p>{{.Title}}</p>
                         </td>
-                        {{end}}
                     </tr>
                     {{end}}
                 </tbody>
             </table>
-            <div class="row">
-                <div class="col-md-1">
-
-                </div>
-
-                <div class="col-md-1">
-                    {{.Title}}
-                </div>
-
-            </div>
-
         </div>
     </body>
 </html>

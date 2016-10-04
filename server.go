@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"time"
+	"sort"
 )
 
 var htmlPath, _ = filepath.Abs("html")
@@ -18,19 +19,17 @@ var htmlPath, _ = filepath.Abs("html")
 // defListenPort - default port for the service to listen on
 const defListenPort = 8081
 
-var fMap = template.FuncMap{
-	"formatAsDate": func (t time.Time) string {
+var GitClient *github.Client
 
-	/* Layouts must use the reference time Mon Jan 2 15:04:05 MST 2006 to show
-	the pattern with which to format/parse a given time/string.
-
-	 PHP-level stupidity here.
-	 */
-	return t.Format("2006-01-02")
-	},
+type RenderedPull struct {
+	RepoName *string
+	UserName *string
+	Age int
+	Title *string
 }
 
-var GitClient *github.Client
+type RenderedPulls []RenderedPull
+
 
 func init() {
 
@@ -56,20 +55,27 @@ func main() {
 	log.Panic(http.ListenAndServe(fmt.Sprintf(":%d", defListenPort), muxer))
 }
 
+func (slice RenderedPulls) Len() int {
+	return len(slice)
+}
+
+func (slice RenderedPulls) Less(i, j int) bool {
+	return slice[i].Age < slice[j].Age;
+}
+
+func (slice RenderedPulls) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
 func HandleHome (w http.ResponseWriter, r *http.Request) {
 
-	type PullReqs struct{
-		RepoName string
-		Request *github.PullRequest
-	}
+	var RenderedPullReqs RenderedPulls
 
-	type NamedPullRepos struct {
-		PullRepos []PullReqs
-	}
+	var repoOpts = &github.RepositoryListByOrgOptions{Type:"private"}
+	var pullOpts = &github.PullRequestListOptions{}
 
-	var pulls []PullReqs
+	t := template.Must(template.New("index.html").ParseFiles(path.Join(htmlPath, "index.html")))
 
-	repoOpts := &github.RepositoryListByOrgOptions{Type:"private"}
 	repos, _, err := GitClient.Repositories.ListByOrg("wrapp", repoOpts)
 	if err != nil {
 		log.Panic(err)
@@ -78,26 +84,27 @@ func HandleHome (w http.ResponseWriter, r *http.Request) {
 	for r := range repos {
 		//We don't care about forks
 		if *repos[r].Fork != true {
-			pullOpts := &github.PullRequestListOptions{}
 			pullList, _, err := GitClient.PullRequests.List("wrapp", *repos[r].Name, pullOpts)
 			if err != nil {
 				log.Panic(err)
 			}
-			for p := range pullList {
-				pulls = append(pulls, PullReqs{RepoName: *repos[r].Name, Request: pullList[p]})
-			}
 
-			var repoNames []string
-			repoNames = append(repoNames, *repos[r].Name)
-			log.Print(repoNames)
+			for p := range pullList {
+				RenderedPullReqs = append(RenderedPullReqs, RenderedPull{
+					RepoName: repos[r].Name,
+					UserName: pullList[p].User.Login,
+					Age: int(time.Now().Sub(*pullList[p].CreatedAt).Hours()),
+					Title: pullList[p].Title,
+
+				})}
 		}
 	}
 	if err != nil {
 		log.Panic(err)
 	}
 
+	sort.Sort(RenderedPullReqs)
 
-	t := template.Must(template.New("index.html").Funcs(fMap).ParseFiles(path.Join(htmlPath, "index.html")))
-	p := NamedPullRepos{PullRepos: pulls}
+	p := RenderedPullReqs
 	t.Execute(w, p)
 }
