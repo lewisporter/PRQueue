@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"path/filepath"
 	"html/template"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 	"time"
 	"sort"
+        "github.com/kardianos/osext"
 )
 
-var htmlPath, _ = filepath.Abs("html")
+var exePath, _ = osext.ExecutableFolder()
+var htmlPath = exePath + "/html"
 
 // defListenPort - default port for the service to listen on
 const defListenPort = 8081
@@ -34,7 +35,7 @@ type RenderedPulls []RenderedPull
 func init() {
 
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: "df59a008a3bf575d3c3fb13a16c5a6e6becd4401"},
+		&oauth2.Token{AccessToken: ""},
 	)
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 

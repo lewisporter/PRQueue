@@ -1,5 +1,5 @@
 hash: 1783b120d2a45fcc1f370d7d39da1babfb1cf5313916c27d194020f8a34b5d87
-updated: 2016-10-04T15:33:27.354584574+02:00
+updated: 2016-11-15T16:58:25.008393989+01:00
 imports:
 - name: github.com/golang/protobuf
   version: df1d3ca07d2d07bba352d5b73c4313b4e2a6203e
@@ -17,6 +17,8 @@ imports:
   version: aed02d124ae4a0e94fea4541c8effd05bf0c8296
 - name: github.com/gorilla/mux
   version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+- name: github.com/kardianos/osext
+  version: c2c54e542fb797ad986b31721e1baedf214ca413
 - name: golang.org/x/net
   version: 075e191f18186a8ff2becaf64478e30f4545cdad
   subpackages:
